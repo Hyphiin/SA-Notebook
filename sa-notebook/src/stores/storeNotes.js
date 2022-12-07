@@ -1,40 +1,59 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import { db } from "@/js/firebase";
+
+const notesCollectionRef = collection(db, "notes");
+const notesCollectionQuery = query(notesCollectionRef, orderBy("date", "desc"));
 
 export const useStoreNotes = defineStore("storeNotes", () => {
-  const notes = ref([
-    {
-      id: "id1",
-      content:
-        "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Qui         repellendus numquam deleniti! Est possimus corrupti error adipisc",
-    },
-    {
-      id: "id2",
-      content: "Shorter Note wuhuuu!",
-    },
-  ]);
+  const notes = ref([]);
 
   /**
    * actions
    */
-  const addNote = (newNoteContent) => {
+  const getNotes = async () => {
+    onSnapshot(notesCollectionQuery, (querySnapshot) => {
+      const tempNotes = [];
+      querySnapshot.forEach((doc) => {
+        let note = {
+          id: doc.id,
+          content: doc.data().content,
+          date: doc.data().date,
+        };
+        tempNotes.push(note);
+      });
+      notes.value = tempNotes;
+    });
+  };
+
+  const addNote = async (newNoteContent) => {
     let currentDate = new Date().getTime(),
-      id = currentDate.toString();
+      date = currentDate.toString();
 
-    let note = {
-      id,
+    await addDoc(notesCollectionRef, {
       content: newNoteContent,
-    };
-    notes.value.unshift(note);
+      date,
+    });
   };
 
-  const deleteNote = (idToDelete) => {
-    notes.value = notes.value.filter((note) => note.id !== idToDelete);
+  const deleteNote = async (idToDelete) => {
+    await deleteDoc(doc(notesCollectionRef, idToDelete));
   };
 
-  const updateNote = (id, content) => {
-    let index = notes.value.findIndex((note) => note.id === id);
-    notes.value[index].content = content;
+  const updateNote = async (id, content) => {
+    await updateDoc(doc(notesCollectionRef, id), {
+      content,
+    });
   };
 
   /**
@@ -58,6 +77,7 @@ export const useStoreNotes = defineStore("storeNotes", () => {
 
   return {
     notes,
+    getNotes,
     addNote,
     deleteNote,
     updateNote,
